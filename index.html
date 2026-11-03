@@ -23,10 +23,10 @@ footer{text-align:center;border-top:1px solid #c9a45b88;padding:24px;color:var(-
 <main>
 <section class="intro"><h2>THE COLLECTION</h2><p>Timeless elegance in every detail.</p></section>
 <nav id="categories"><button class="active" data-cat="ALL">ALL COLLECTION</button><button data-cat="NECKLACE">NECKLACE</button><button data-cat="BRACELET">BRACELET</button><button data-cat="RING">RING</button></nav>
-<div class="heading"><h3 id="heading">ALL COLLECTION</h3><div id="adminActions" hidden><button class="btn" id="add">＋ ADD PRODUCT</button><button class="btn" id="backup">EXPORT BACKUP</button><label class="btn" for="restore">IMPORT BACKUP</label><input id="restore" type="file" accept="application/json" hidden></div></div>
+<div class="heading"><h3 id="heading">ALL COLLECTION</h3><div id="adminActions" hidden><button class="btn" id="add">＋ ADD PRODUCT</button><button class="btn" id="backup">EXPORT BACKUP</button></div></div>
 <section class="grid" id="grid"></section>
 </main><footer>ÉCLORIA · LUXURY JEWELRY</footer>
-<div class="overlay" id="loginBox"><div class="dialog"><h2>ADMIN ACCESS</h2><p class="note">Masuk untuk mengelola koleksi ÉCLORIA.</p><form id="loginForm"><div class="field"><label>ADMIN PASSWORD</label><input id="pass" type="password" required autocomplete="current-password" placeholder="Masukkan admin12345"></div><div class="rowbtn"><button class="btn">LOGIN</button><button class="btn" type="button" data-close="loginBox">CANCEL</button></div></form><p class="note">Password awal demo: <b>admin12345</b>. Ganti melalui menu Change Password setelah login.</p></div></div>
+<div class="overlay" id="loginBox"><div class="dialog"><h2>ADMIN ACCESS</h2><p class="note">Masuk menggunakan akun Admin ÉCLORIA.</p><form id="loginForm"><div class="field"><label>ADMIN EMAIL</label><input id="adminEmail" type="email" required autocomplete="username" placeholder="Email admin"></div><div class="field" style="margin-top:12px"><label>PASSWORD</label><input id="pass" type="password" required autocomplete="current-password" placeholder="Password akun Supabase"></div><p class="note" id="loginError" role="alert"></p><div class="rowbtn"><button class="btn" type="submit">LOGIN</button><button class="btn" type="button" data-close="loginBox">CANCEL</button></div></form></div></div>
 <div class="overlay" id="formBox"><div class="dialog"><h2 id="formTitle">ADD PRODUCT</h2><form id="productForm"><div class="fields">
 <div class="field"><label>PRODUCT NAME</label><input id="pname" required></div>
 <div class="field"><label>CATEGORY</label><select id="pcat"><option>NECKLACE</option><option>BRACELET</option><option>RING</option></select></div>
@@ -34,26 +34,150 @@ footer{text-align:center;border-top:1px solid #c9a45b88;padding:24px;color:var(-
 <div class="field"><label>COLOR</label><input id="pcolor" placeholder="Contoh: Silver"></div>
 <div class="field"><label>MATERIAL</label><input id="pmat" placeholder="Contoh: Silver S925"></div>
 <div class="field"><label>PRODUCT PHOTO</label><input id="pfile" type="file" accept="image/*"></div>
-</div><p class="note">Isi detail sesuai informasi produk. Foto akan diperkecil agar lebih ringan.</p><div class="rowbtn"><button class="btn">SAVE PRODUCT</button><button class="btn" type="button" data-close="formBox">CANCEL</button></div></form></div></div>
+</div><p class="note">Isi detail sesuai informasi produk. Foto akan diperkecil agar lebih ringan.</p><div class="rowbtn"><button class="btn" type="submit">SAVE PRODUCT</button><button class="btn" type="button" data-close="formBox">CANCEL</button></div></form></div></div>
 <div class="overlay" id="detailBox"><div class="dialog" id="detailContent"></div></div>
-<div class="overlay" id="passwordBox"><div class="dialog"><h2>CHANGE ADMIN PASSWORD</h2><form id="passwordForm"><div class="field"><label>CURRENT PASSWORD</label><input id="oldpass" type="password" required></div><div class="field"><label>NEW PASSWORD (MIN. 8 CHARACTERS)</label><input id="newpass" type="password" minlength="8" required></div><div class="rowbtn"><button class="btn">UPDATE PASSWORD</button><button class="btn" type="button" data-close="passwordBox">CANCEL</button></div></form></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-const DB='ecloria_products_v2',PW='ecloria_admin_pw_v1';let products=JSON.parse(localStorage.getItem(DB)||'[]'),isAdmin=false,cat='ALL',editing=null;
-const el=id=>document.getElementById(id),open=id=>el(id).classList.add('open'),close=id=>el(id).classList.remove('open');
-const esc=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function persist(){localStorage.setItem(DB,JSON.stringify(products));render()}
-function render(){el('modeLabel').textContent=isAdmin?'ADMIN MODE':'CUSTOMER CATALOG';el('adminAccess').hidden=isAdmin;el('logout').hidden=!isAdmin;el('adminActions').hidden=!isAdmin;el('heading').textContent=cat==='ALL'?'ALL COLLECTION':cat;let arr=products.filter(p=>cat==='ALL'||p.cat===cat);el('grid').innerHTML=arr.length?arr.map(p=>`<article class="card" data-id="${p.id}">${p.photo?`<img class="pic" src="${p.photo}" alt="${esc(p.name)}">`:'<div class="placeholder">ÉCLORIA</div>'}<div class="meta"><h4>${esc(p.name)}</h4><p>${esc(p.size||'—')}</p><p>${esc(p.color||'—')} · ${esc(p.mat||'—')}</p></div></article>`).join(''):'<div class="empty">Koleksi akan ditampilkan di sini.</div>';document.querySelectorAll('.card').forEach(c=>c.onclick=()=>detail(c.dataset.id))}
-document.querySelectorAll('#categories button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#categories button').forEach(x=>x.classList.remove('active'));b.classList.add('active');cat=b.dataset.cat;render()});
-el('adminAccess').onclick=()=>open('loginBox');el('loginForm').onsubmit=e=>{e.preventDefault();let saved=localStorage.getItem(PW)||'admin12345';if(el('pass').value===saved||el('pass').value==='admin12345'){localStorage.setItem(PW,'admin12345');isAdmin=true;close('loginBox');el('pass').value='';render();if(!document.getElementById('changePw')){let b=document.createElement('button');b.id='changePw';b.className='btn';b.textContent='CHANGE PASSWORD';b.onclick=()=>open('passwordBox');document.querySelector('.topbar').appendChild(b)}}else alert('Password salah.')};
-el('logout').onclick=()=>{isAdmin=false;document.getElementById('changePw')?.remove();render()};
-document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>close(b.dataset.close));
-el('add').onclick=()=>form();function form(p=null){editing=p?.id||null;el('formTitle').textContent=p?'EDIT PRODUCT':'ADD PRODUCT';el('pname').value=p?.name||'';el('pcat').value=p?.cat||'NECKLACE';el('psize').value=p?.size||'';el('pcolor').value=p?.color||'';el('pmat').value=p?.mat||'';el('pfile').value='';open('formBox')}
-function imageData(file){return new Promise((res,rej)=>{let r=new FileReader();r.onload=()=>{let im=new Image();im.onload=()=>{let c=document.createElement('canvas'),s=Math.min(1,1100/Math.max(im.width,im.height));c.width=im.width*s;c.height=im.height*s;c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.8))};im.onerror=rej;im.src=r.result};r.onerror=rej;r.readAsDataURL(file)})}
-el('productForm').onsubmit=async e=>{e.preventDefault();let old=products.find(p=>p.id===editing),photo=old?.photo||'';if(el('pfile').files[0])photo=await imageData(el('pfile').files[0]);let p={id:editing||String(Date.now()),name:el('pname').value.trim(),cat:el('pcat').value,size:el('psize').value.trim(),color:el('pcolor').value.trim(),mat:el('pmat').value.trim(),photo};products=editing?products.map(x=>x.id===editing?p:x):[...products,p];persist();close('formBox')};
-function detail(id){let p=products.find(x=>x.id===id);el('detailContent').innerHTML=`<button class="btn" id="closeD">CLOSE</button>${p.photo?`<img class="detailimg" src="${p.photo}">`:''}<h2>${esc(p.name)}</h2><div class="detail">Category: ${esc(p.cat)}<br>Size / Length: ${esc(p.size||'—')}<br>Color: ${esc(p.color||'—')}<br>Material: ${esc(p.mat||'—')}</div>${isAdmin?'<div class="rowbtn"><button class="btn" id="editD">EDIT</button><button class="btn" id="delD">DELETE</button></div>':''}`;open('detailBox');el('closeD').onclick=()=>close('detailBox');if(isAdmin){el('editD').onclick=()=>{close('detailBox');form(p)};el('delD').onclick=()=>{if(confirm('Hapus produk ini?')){products=products.filter(x=>x.id!==id);persist();close('detailBox')}}}}
-el('passwordForm').onsubmit=e=>{e.preventDefault();if(el('oldpass').value!==(localStorage.getItem(PW)||'admin12345'))return alert('Password lama salah.');localStorage.setItem(PW,el('newpass').value);el('passwordForm').reset();close('passwordBox');alert('Password demo diperbarui.')};
-el('backup').onclick=()=>{let blob=new Blob([JSON.stringify(products)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ecloria-backup.json';a.click();URL.revokeObjectURL(a.href)};
-el('restore').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{products=JSON.parse(await f.text());persist();alert('Backup berhasil diimpor.')}catch{alert('File backup tidak valid.')}e.target.value=''};
-render();
+const SUPABASE_URL = 'https://dmaqcvauphnyncdqpixwr.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_ICdxzqBxG9foWkfbvlK_TA_And1zXix';
+const ADMIN_UID = 'a03bbd28-3693-4802-ad7f-fc7095041eb2';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+let products = [], isAdmin = false, cat = 'ALL', editing = null;
+const el = id => document.getElementById(id);
+const open = id => el(id).classList.add('open');
+const close = id => el(id).classList.remove('open');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function notify(msg) { alert(msg); }
+
+function fromRow(row) {
+  return {id: row.id, name: row.name, cat: row.category, size: row.size || '', color: row.color || '', mat: row.material || '', photo: row.photo_url || ''};
+}
+async function loadProducts() {
+  const {data, error} = await supabaseClient.from('products').select('*').order('created_at', {ascending:false});
+  if (error) { console.error(error); notify('Katalog gagal dimuat: ' + error.message); return; }
+  products = (data || []).map(fromRow);
+  render();
+}
+function render() {
+  el('modeLabel').textContent = isAdmin ? 'ADMIN MODE' : 'CUSTOMER CATALOG';
+  el('adminAccess').hidden = isAdmin;
+  el('logout').hidden = !isAdmin;
+  el('adminActions').hidden = !isAdmin;
+  el('heading').textContent = cat === 'ALL' ? 'ALL COLLECTION' : cat;
+  const arr = products.filter(p => cat === 'ALL' || p.cat === cat);
+  el('grid').innerHTML = arr.length ? arr.map(p => `<article class="card" data-id="${esc(p.id)}">${p.photo ? `<img class="pic" src="${esc(p.photo)}" alt="${esc(p.name)}" loading="lazy">` : '<div class="placeholder">ÉCLORIA</div>'}<div class="meta"><h4>${esc(p.name)}</h4><p>${esc(p.size || '—')}</p><p>${esc(p.color || '—')} · ${esc(p.mat || '—')}</p></div></article>`).join('') : '<div class="empty">Koleksi akan ditampilkan di sini.</div>';
+  document.querySelectorAll('.card').forEach(c => c.onclick = () => detail(c.dataset.id));
+}
+document.querySelectorAll('#categories button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#categories button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active'); cat = b.dataset.cat; render();
+});
+
+el('adminAccess').onclick = () => { el('loginError').textContent = ''; open('loginBox'); };
+el('loginForm').onsubmit = async e => {
+  e.preventDefault();
+  el('loginError').textContent = 'Memeriksa akun...';
+  const {data, error} = await supabaseClient.auth.signInWithPassword({
+    email: el('adminEmail').value.trim(),
+    password: el('pass').value
+  });
+  if (error) { el('loginError').textContent = 'Login gagal: ' + error.message; return; }
+  if (data.user?.id !== ADMIN_UID) {
+    await supabaseClient.auth.signOut();
+    el('loginError').textContent = 'Akun ini tidak memiliki akses Admin ÉCLORIA.';
+    return;
+  }
+  isAdmin = true; el('pass').value = ''; el('loginError').textContent = '';
+  close('loginBox'); render();
+};
+el('logout').onclick = async () => {
+  await supabaseClient.auth.signOut(); isAdmin = false; render();
+};
+document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => close(b.dataset.close));
+
+el('add').onclick = () => form();
+function form(p = null) {
+  editing = p?.id || null;
+  el('formTitle').textContent = p ? 'EDIT PRODUCT' : 'ADD PRODUCT';
+  el('pname').value = p?.name || '';
+  el('pcat').value = p?.cat || 'NECKLACE';
+  el('psize').value = p?.size || '';
+  el('pcolor').value = p?.color || '';
+  el('pmat').value = p?.mat || '';
+  el('pfile').value = '';
+  open('formBox');
+}
+function safeFileName(name) {
+  return name.toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/-+/g, '-').slice(-90);
+}
+async function uploadPhoto(file) {
+  const path = `${crypto.randomUUID()}-${safeFileName(file.name)}`;
+  const {error} = await supabaseClient.storage.from('product-images').upload(path, file, {
+    cacheControl: '3600', upsert: false, contentType: file.type || 'image/jpeg'
+  });
+  if (error) throw error;
+  return supabaseClient.storage.from('product-images').getPublicUrl(path).data.publicUrl;
+}
+el('productForm').onsubmit = async e => {
+  e.preventDefault();
+  if (!isAdmin) return notify('Silakan login sebagai Admin.');
+  const submit = el('productForm').querySelector('button[type="submit"]') || el('productForm').querySelector('button');
+  submit.disabled = true; submit.textContent = 'SAVING...';
+  try {
+    const old = products.find(p => p.id === editing);
+    let photo = old?.photo || '';
+    const file = el('pfile').files[0];
+    if (file) photo = await uploadPhoto(file);
+    const row = {
+      name: el('pname').value.trim(),
+      category: el('pcat').value,
+      size: el('psize').value.trim(),
+      color: el('pcolor').value.trim(),
+      material: el('pmat').value.trim(),
+      photo_url: photo,
+      updated_at: new Date().toISOString()
+    };
+    const result = editing
+      ? await supabaseClient.from('products').update(row).eq('id', editing)
+      : await supabaseClient.from('products').insert(row);
+    if (result.error) throw result.error;
+    await loadProducts(); close('formBox'); el('productForm').reset();
+  } catch (err) {
+    console.error(err); notify('Produk gagal disimpan: ' + (err.message || err));
+  } finally {
+    submit.disabled = false; submit.textContent = 'SAVE PRODUCT';
+  }
+};
+function detail(id) {
+  const p = products.find(x => x.id === id); if (!p) return;
+  el('detailContent').innerHTML = `<button class="btn" id="closeD">CLOSE</button>${p.photo ? `<img class="detailimg" src="${esc(p.photo)}" alt="${esc(p.name)}">` : ''}<h2>${esc(p.name)}</h2><div class="detail">Category: ${esc(p.cat)}<br>Size / Length: ${esc(p.size || '—')}<br>Color: ${esc(p.color || '—')}<br>Material: ${esc(p.mat || '—')}</div>${isAdmin ? '<div class="rowbtn"><button class="btn" id="editD">EDIT</button><button class="btn" id="delD">DELETE</button></div>' : ''}`;
+  open('detailBox'); el('closeD').onclick = () => close('detailBox');
+  if (isAdmin) {
+    el('editD').onclick = () => { close('detailBox'); form(p); };
+    el('delD').onclick = async () => {
+      if (!confirm('Hapus produk ini?')) return;
+      const {error} = await supabaseClient.from('products').delete().eq('id', id);
+      if (error) return notify('Produk gagal dihapus: ' + error.message);
+      products = products.filter(x => x.id !== id); render(); close('detailBox');
+    };
+  }
+}
+el('backup').onclick = () => {
+  const blob = new Blob([JSON.stringify(products, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'ecloria-products-backup.json'; a.click(); URL.revokeObjectURL(a.href);
+};
+(async function init() {
+  const {data:{session}} = await supabaseClient.auth.getSession();
+  if (session?.user?.id === ADMIN_UID) isAdmin = true;
+  else if (session) await supabaseClient.auth.signOut();
+  await loadProducts();
+  supabaseClient.auth.onAuthStateChange((_event, sessionNow) => {
+    isAdmin = sessionNow?.user?.id === ADMIN_UID;
+    render();
+  });
+})();
 </script>
 </body></html>
